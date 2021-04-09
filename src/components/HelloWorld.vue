@@ -62,7 +62,7 @@ export default {
     },
     randomOps() {
       //const opsList = [this.writeOrdinary, this.readOrdinary, this.writeTransparent, this.readTransparent];
-      const opsList = [this.writeOrdinary, this.readOrdinary, this.writeTransparentAvoidHotArea, this.readTransparent];
+      const opsList = [this.writeOrdinary, this.readOrdinary, this.writeTransparentAvoidHotArea, this.readTransparent, this.deleteOrdinary];
       opsList[this.randomInt(opsList.length)]();
     },
     getRandomBlocks() {
@@ -76,6 +76,34 @@ export default {
         { blocks: this.fileSystems[index1], index: index1},
         { blocks: this.fileSystems[index2], index: index2}
       ];
+    },
+    deleteOrdinary(){
+      console.warn("delete ordinary");
+      let shuffleFiles = Array.from(this.files).sort(function() {
+        return .5 - Math.random();
+      });
+
+      const _clearBlock = (block) => {
+        block.status = STATUS.FREE;
+        block.color = COLOR[block.status]
+        block.fid = null;
+        let p = block.nextBlock;
+        block.nextBlock = null;
+        return p;
+        // block.allocateCounter +=1;
+      }
+
+      for(let file of shuffleFiles){
+        if(file.type === 'ordinary'){
+          this.files = this.files.filter((f)=>f.fid!==file.fid)
+          let location = file.location[0];
+          let blockHead = this.fileSystems[location.fsIndex][location.blockIndex]
+          while(blockHead){
+            blockHead = _clearBlock(blockHead)
+          }
+          break;
+        }
+      }
     },
     writeOrdinary() {
       console.warn("write ordinary")
@@ -102,6 +130,7 @@ export default {
         }
         block.color = COLOR[block.status]
         block.fid = currentFid;
+        block.allocateCounter +=1;
       }
       
       // file size is 2 blocks
@@ -110,7 +139,9 @@ export default {
         const nextBlock = randomBlocks[Number(i)+1];
         if (_canWrite(block) && _canWrite(nextBlock)) {
           _writeBlock(block);
+          block.nextBlock = nextBlock;
           _writeBlock(nextBlock);
+          nextBlock.nextBlock = null;
           this.files.push({ fid: currentFid, type: "ordinary",location:[{ fsIndex, blockIndex: i, size: 2}] })
           break;
         }
@@ -226,12 +257,11 @@ export default {
     },
     readTransparent() {
       console.warn("read transparent")
-      
     },
     generateBlocks(number) {
       const blocks = [];
       for (const i of Array(number).keys()) {
-        const block = {id: i, status: STATUS.FREE, color: COLOR[STATUS.FREE]};
+        const block = {id: i, status: STATUS.FREE, color: COLOR[STATUS.FREE], allocateCounter: 0, nextBlock: null};
         blocks.push(block);
       }
       return blocks;
